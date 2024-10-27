@@ -1,4 +1,7 @@
 import numpy as np
+import socket
+import struct
+import select
 import time
 import random
 import membership_functions as membership
@@ -115,25 +118,48 @@ def fetchPsi(interval):
 interval = 0.3
 
 
-while True:
+def listen_for_latency(duration):
+    host = '0.0.0.0'
+    port = 8081
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket.bind((host, port))
+    print("Listening for UDP packets...")
 
-    # Read the latency
-    latency = random.randint(100, 1600)/100
-    # Read the PSI
-    psi = fetchPsi(interval)
+    start_time = time.time()
 
-    fuzzified_latency = fuzzify_latency(latency)
-    fuzzfied_psi = fuzzify_psi(psi)
+    try:
+        while time.time() - start_time < duration:
+            try:
+                data, addr = udp_socket.recvfrom(1024)
+                if data:
 
-    evaluated_rules = evaluate_rules(fuzzfied_psi, fuzzified_latency)
+                    latency = struct.unpack('>f', data)[0]
+                    psi = fetchPsi(interval)
 
-    crisp_output = defuzzify_admission(evaluated_rules)
+                    fuzzified_latency = fuzzify_latency(latency)
+                    fuzzfied_psi = fuzzify_psi(psi)
 
-    if crisp_output >= 0.7:
-        # contianer admission must be done here
-        print("admit")
-    elif 0.4 < crisp_output < 0.7:
-        # container admission is done cautiously this is for the time that we have some other facotrs for admittion
-        print("admit cautiously")
-    else:
-        print("deny admission")
+                    evaluated_rules = evaluate_rules(
+                        fuzzfied_psi, fuzzified_latency)
+
+                    crisp_output = defuzzify_admission(evaluated_rules)
+
+                    if crisp_output >= 0.7:
+                        # contianer admission must be done here
+                        print("admit")
+                    elif 0.4 < crisp_output < 0.7:
+                        # container admission is done cautiously this is for the time that we have some other facotrs for admittion
+                        print("admit cautiously")
+                    else:
+                        print("deny admission")
+
+                    print(f"received from {addr} | Latency: {latency} ms , PSI: {
+                        psi}, Admission decision: {crisp_output}")
+
+            except socket.timeout:
+                continue
+    finally:
+        udp_socket.close()
+
+
+listen_for_latency(700)
