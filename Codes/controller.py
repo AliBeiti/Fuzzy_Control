@@ -119,8 +119,10 @@ interval = 0.3
 
 
 def listen_for_latency(duration):
-    host = '0.0.0.0'
-    port = 8081
+    latency_list = []
+    time_list = []
+    host = '127.0.0.1'
+    port = 9090
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp_socket.bind((host, port))
     print("Listening for UDP packets...")
@@ -134,6 +136,8 @@ def listen_for_latency(duration):
                 if data:
 
                     latency = struct.unpack('>f', data)[0]
+                    latency_list.append(latency)
+                    time_list.append(time.time())
                     psi = fetchPsi(interval)
 
                     fuzzified_latency = fuzzify_latency(latency)
@@ -146,15 +150,15 @@ def listen_for_latency(duration):
 
                     if crisp_output >= 0.7:
                         # contianer admission must be done here
-                        print("admit")
+                        print("admit confidently \n A new container admitted")
                     elif 0.4 < crisp_output < 0.7:
                         # container admission is done cautiously this is for the time that we have some other facotrs for admittion
-                        print("admit cautiously")
+                        print("admit cautiously \n A new container admitted")
                     else:
                         print("deny admission")
 
                     print(f"received from {addr} | Latency: {latency} ms , PSI: {
-                        psi}, Admission decision: {crisp_output}")
+                          psi}, Admission decision: {crisp_output}")
 
             except socket.timeout:
                 continue
